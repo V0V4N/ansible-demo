@@ -1,0 +1,54 @@
+---
+
+- name: Get list of all CPUs
+  ansible.builtin.command: "find /sys/devices/system/cpu -name 'cpu[0-9]*' -type d"
+  register: cpu_list
+  changed_when: false
+  failed_when: cpu_list.rc != 0 or cpu_list.stdout_lines | length == 0
+
+- name: Extract CPU numbers
+  ansible.builtin.set_fact:
+    cpu_cores: "{{ cpu_list.stdout_lines | map('basename') | map('regex_replace', '^cpu', '') | list }}"
+
+- name: Show detected CPUs
+  ansible.builtin.debug:
+    msg: "Detected CPUs: {{ cpu_cores }}"
+
+- name: Check if C-states can be disabled
+  ansible.builtin.stat:
+    path: "/sys/devices/system/cpu/cpu0/cpuidle/state0/disable"
+  register: cstate_file
+
+- name: Fail if C-state management is not available
+  ansible.builtin.fail:
+    msg: "C-states cannot be disabled on this system!"
+  when: not cstate_file.stat.exists
+
+- name: Disable C-state for all CPUs (Immediate Effect)
+  ansible.builtin.shell: >
+    set -o pipefail &&
+    find /sys/devices/system/cpu/cpu{{ item }}/cpuidle/ -name 'state*' -exec sh -c 'echo 1 | tee {}/disable' \;
+  become: true
+  loop: "{{ cpu_cores }}"
+  changed_when: true
+  loop_control:
+    label: "Disabling C-state for CPU {{ item }}"
+  args:
+    executable: /bin/bash
+
+- name: Check if GRUB already has C-state settings
+  ansible.builtin.command: "grep 'processor.max_cstate=0' /etc/default/grub"
+  register: grub_cstate_check
+  changed_when: false
+  failed_when: grub_cstate_check.rc > 1  # Only fail for unexpected errors
+
+- name: Ensure persistent C-state disable in GRUB
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    backrefs: true
+    regexp: '^(GRUB_CMDLINE_LINUX_DEFAULT=")(.*?)(")$'
+    line: '\1\2 processor.max_cstate=0 intel_idle.max_cstate=0\3'
+    backup: true
+  become: true
+  when: grub_cstate_check.rc != 0
+  notify: Update GRUB

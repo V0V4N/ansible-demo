@@ -1,0 +1,62 @@
+---
+
+- name: Check if CPU frequency scaling is supported
+  ansible.builtin.stat:
+    path: "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
+  register: scaling_governor_file
+
+- name: Fail if CPU frequency scaling is not supported
+  ansible.builtin.fail:
+    msg: "CPU frequency scaling is not supported on this system!"
+  when: not scaling_governor_file.stat.exists
+
+- name: Ensure CPU frequency package is installed
+  ansible.builtin.package:
+    name: "cpufrequtils"
+    state: present
+  become: true
+
+- name: Get current CPU governor
+  ansible.builtin.command: "cpufreq-info -p"
+  register: current_governor
+  changed_when: false
+  failed_when: current_governor.rc != 0
+
+- name: Extract CPU governor value
+  ansible.builtin.set_fact:
+    governor_value: "{{ current_governor.stdout.split()[-1] | trim }}"
+
+- name: Show current CPU governor
+  ansible.builtin.debug:
+    msg: "Current CPU governor: {{ governor_value }}"
+
+- name: Get available CPU governors
+  ansible.builtin.command: "cpufreq-info -g"
+  register: available_governors
+  changed_when: false
+  failed_when: available_governors.rc != 0 or available_governors.stdout | trim == ""
+
+- name: Show available CPU governors
+  ansible.builtin.debug:
+    msg: "Available CPU governors: {{ available_governors.stdout }}"
+
+- name: Fail if 'performance' governor is not available
+  ansible.builtin.fail:
+    msg: "'performance' governor is not available! Available governors: {{ available_governors.stdout }}"
+  when: "'performance' not in available_governors.stdout"
+
+- name: Set CPU governor to 'performance'
+  ansible.builtin.command: "cpufreq-set -r -g performance"
+  become: true
+  when: governor_value != "performance"
+  changed_when: true
+
+- name: Ensure persistence of the setting
+  ansible.builtin.lineinfile:
+    path: /etc/default/cpufrequtils
+    regexp: '^GOVERNOR='
+    line: 'GOVERNOR=performance'
+    create: true
+    mode: '0644'
+  become: true
+  notify: Restart cpufrequtils

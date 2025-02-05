@@ -1,0 +1,12 @@
+version: '3'
+services:
+  ansible:
+    build: .
+    volumes:
+      - .:/etc/ansible
+      - .ssh:/root/.ssh:ro
+    working_dir: /etc/ansible
+    environment:
+      - ANSIBLE_HOST_KEY_CHECKING=False
+      - LUKS_PASSWORD=${LUKS_PASSWORD}
+    entrypoint: ["/bin/bash"]

@@ -1,0 +1,15 @@
+- name: Bootstrap server
+  hosts: all
+  become: true
+  tasks:
+    - name: Run CPU configuration role
+      ansible.builtin.include_role:
+        name: cpu
+
+    # - name: Run Disk configuration role
+    #   ansible.builtin.include_role:
+    #     name: disk
+
+    # - name: Run Network configuration role
+    #   ansible.builtin.include_role:
+    #     name: network

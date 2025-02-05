@@ -1,0 +1,10 @@
+---
+- name: Restart cpufrequtils
+  ansible.builtin.systemd:
+    name: cpufrequtils
+    state: restarted
+
+- name: Update GRUB
+  ansible.builtin.command: "{{ 'update-grub' if ansible_os_family == 'Debian' else 'grub2-mkconfig -o /boot/grub2/grub.cfg' }}"
+  become: true
+  changed_when: true

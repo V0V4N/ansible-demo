@@ -1,0 +1,3 @@
+ansible_connection: local
+partition_to_encrypt: "/dev/sdb"
+luks_password: "{{ lookup('env', 'LUKS_PASSWORD') }}"
