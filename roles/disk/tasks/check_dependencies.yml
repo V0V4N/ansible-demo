@@ -1,0 +1,10 @@
+---
+
+- name: Check for dependencies required for disk encryption
+  tags: [encrypt-partition, encrypt-disk, disk]
+  block:
+    - name: Ensure cryptsetup package is installed
+      ansible.builtin.package:
+        name: "cryptsetup"
+        state: present
+      become: true

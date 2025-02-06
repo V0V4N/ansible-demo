@@ -4,9 +4,11 @@
   block:
     - name: Apply CPU governor settings
       ansible.builtin.include_tasks: governors.yml
+      tags: [governor, cpu]
 
     - name: Apply CPU C-state settings
       ansible.builtin.include_tasks: cstate.yml
+      tags: [cstate, cpu]
 
   rescue:
     - name: Log failure but continue
@@ -15,3 +17,4 @@
 
     - name: Apply CPU C-state settings (even if governor settings failed)
       ansible.builtin.include_tasks: cstate.yml
+      tags: [cstate, cpu]

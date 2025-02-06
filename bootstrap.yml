@@ -3,12 +3,26 @@
   become: true
   tasks:
     - name: Run CPU configuration role
-      ansible.builtin.include_role:
-        name: cpu
+      block:
+        - name: Run CPU role
+          ansible.builtin.include_role:
+            name: cpu
+          tags: [governor, cstate, cpu]
+      rescue:
+        - name: Log CPU role failure, but continue
+          ansible.builtin.debug:
+            msg: "CPU role failed, but continuing with Disk configuration."
 
-    # - name: Run Disk configuration role
-    #   ansible.builtin.include_role:
-    #     name: disk
+    - name: Run Disk configuration role
+      block:
+        - name: Run Disk role
+          ansible.builtin.include_role:
+            name: disk
+          tags: [encrypt-disk, disk]
+      rescue:
+        - name: Log disk role failure, but continue
+          ansible.builtin.debug:
+            msg: "Disk role failed, but continuing with Network configuration."
 
     # - name: Run Network configuration role
     #   ansible.builtin.include_role:
