@@ -1,10 +1,10 @@
 ---
 
 - name: Apply CPU governor settings
+  tags: [set-governor, cpu]
   block:
     - name: Apply CPU governor settings
       ansible.builtin.include_tasks: set_governor.yml
-      tags: [set-governor, cpu]
 
   rescue:
     - name: Log failure but continue

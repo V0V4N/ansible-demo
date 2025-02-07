@@ -3,6 +3,14 @@
 - name: Rename network interface to net0
   tags: [rename-interface, network]
   block:
+    - name: Ensure required network packages are installed
+      ansible.builtin.package:
+        name:
+          - "{{ 'iproute2' if ansible_os_family == 'Debian' else 'iproute' }}"
+          - jq
+        state: present
+      become: true
+
     - name: Get the first active (UP) network interface (excluding loopback)
       ansible.builtin.shell: >
         set -o pipefail &&

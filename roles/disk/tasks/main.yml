@@ -5,10 +5,10 @@
   tags: [encrypt-disk, disk]
 
 - name: Apply disk encryption settings
+  tags: [encrypt-disk, disk]
   block:
     - name: Encrypt a disk listed in host_vars
       ansible.builtin.include_tasks: encrypt_disk.yml
-      tags: [encrypt-disk, disk]
       when: disk_to_encrypt is defined
   rescue:
     - name: Log failure but continue
@@ -16,10 +16,10 @@
         msg: "[ERROR] Disk encryption failed, continuing..."
 
 - name: Apply partition encryption settings
+  tags: [encrypt-partition, disk]
   block:
     - name: Encrypt partition that is next to the root partition
       ansible.builtin.include_tasks: encrypt_partition.yml
-      tags: [encrypt-partition, disk]
   rescue:
     - name: Log failure but continue
       ansible.builtin.debug:
