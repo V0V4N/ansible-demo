@@ -7,7 +7,7 @@
         - name: Run CPU role
           ansible.builtin.include_role:
             name: cpu
-          tags: [governor, cstate, cpu]
+          tags: [set-governor, set-cstates, cpu]
       rescue:
         - name: Log CPU role failure, but continue
           ansible.builtin.debug:
@@ -18,12 +18,13 @@
         - name: Run Disk role
           ansible.builtin.include_role:
             name: disk
-          tags: [encrypt-disk, disk]
+          tags: [encrypt-disk, encrypt-partition, disk]
       rescue:
         - name: Log disk role failure, but continue
           ansible.builtin.debug:
             msg: "Disk role failed, but continuing with Network configuration."
 
-    # - name: Run Network configuration role
-    #   ansible.builtin.include_role:
-    #     name: network
+    - name: Run Network configuration role
+      ansible.builtin.include_role:
+        name: network
+      tags: [rename-interface, network]

@@ -1,6 +1,6 @@
 ---
 - name: Apply C-state settings
-  tags: [cstate, cpu]
+  tags: [set-cstates, cpu]
   block:
     - name: Get list of all CPUs
       ansible.builtin.command: "find /sys/devices/system/cpu -name 'cpu[0-9]*' -type d"

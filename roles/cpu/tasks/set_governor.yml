@@ -1,6 +1,6 @@
 ---
 - name: Apply CPU governor settings
-  tags: [governor, cpu]
+  tags: [set-governor, cpu]
   block:
     - name: Check if CPU frequency scaling is supported
       ansible.builtin.stat:
