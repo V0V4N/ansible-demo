@@ -1,0 +1,4 @@
+ansible_host: <host>
+ansible_user: <user>
+luks_password: "{{ lookup('env', 'LUKS_PASSWORD') }}"
+disk_to_encrypt: "/dev/xvdf"

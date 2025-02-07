@@ -1,0 +1,63 @@
+---
+
+- name: Rename network interface to net0
+  tags: [rename-interface, network]
+  block:
+    - name: Get the first active (UP) network interface (excluding loopback)
+      ansible.builtin.shell: >
+        set -o pipefail &&
+        ip -o link show up | awk -F': ' '!/lo/ {print $2}' | head -n 1
+      register: active_interface
+      changed_when: false
+      become: true
+      failed_when: active_interface.stdout | trim == ""
+      args:
+        executable: /bin/bash
+
+    - name: Get MAC address of the active interface
+      ansible.builtin.command: "cat /sys/class/net/{{ active_interface.stdout }}/address"
+      register: interface_mac
+      changed_when: false
+      become: true
+
+    - name: Show detected network interface
+      ansible.builtin.debug:
+        msg: "Detected active network interface: {{ active_interface.stdout }} (MAC: {{ interface_mac.stdout }})"
+
+    - name: Check if interface already has altname net0
+      ansible.builtin.shell: >
+        set -o pipefail &&
+        ip -j link show {{ active_interface.stdout }} | jq -e '.[0].altnames | index("net0")' > /dev/null && echo 'exists' || echo 'missing'
+      register: altname_check
+      changed_when: false
+      become: true
+      failed_when: altname_check.rc not in [0, 1]
+      args:
+        executable: /bin/bash
+
+    - name: Set alternative interface name `net0` (only if missing)
+      ansible.builtin.command: "ip link property add dev {{ active_interface.stdout }} altname net0"
+      become: true
+      changed_when: true
+      when: "'missing' in altname_check.stdout"
+
+    - name: Get network interface details for net0
+      ansible.builtin.command: "ip link show net0"
+      register: new_interface_details
+      changed_when: false
+      become: true
+
+    - name: Display net0 network interface information
+      ansible.builtin.debug:
+        msg: "{{ new_interface_details.stdout }}"
+
+    - name: Ensure `udev` rule exists for alternative interface name
+      ansible.builtin.lineinfile:
+        path: "/etc/udev/rules.d/75-altname-net0.rules"
+        line: 'ACTION=="add", SUBSYSTEM=="net", ATTR{address}=="{{ interface_mac.stdout }}", RUN+="/sbin/ip link property add dev %k altname net0"'
+        create: true
+        mode: '0644'
+      become: true
+      notify:
+        - Reload `udev` Rules
+        - Trigger `udev` Rules

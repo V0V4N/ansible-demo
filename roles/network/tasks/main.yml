@@ -1,0 +1,11 @@
+---
+
+- name: Apply network settings
+  block:
+    - name: Install required packages
+      ansible.builtin.include_tasks: check_dependencies.yml
+      tags: [rename-interface, network]
+
+    - name: Rename interface to net0
+      ansible.builtin.include_tasks: rename_interface.yml
+      tags: [rename-interface, network]

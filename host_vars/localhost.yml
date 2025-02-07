@@ -1,0 +1,3 @@
+ansible_connection: local
+disk_to_encrypt: "/dev/xvdf"
+luks_password: "{{ lookup('env', 'LUKS_PASSWORD') }}"

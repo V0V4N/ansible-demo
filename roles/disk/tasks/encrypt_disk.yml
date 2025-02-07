@@ -1,0 +1,108 @@
+---
+
+- name: Encrypt a disk listed in host_vars
+  tags: [encrypt-disk, disk]
+  block:
+    - name: Check if the disk exists
+      ansible.builtin.stat:
+        path: "{{ disk_to_encrypt }}"
+      register: disk_check
+      become: true
+
+    - name: Fail if the disk does not exist
+      ansible.builtin.fail:
+        msg: "The specified disk {{ disk_to_encrypt }} does not exist!"
+      when: not disk_check.stat.exists
+
+    - name: Fail if LUKS password is not set or empty
+      ansible.builtin.fail:
+        msg: "LUKS_PASSWORD environment variable is not set or empty!"
+      when: luks_password is undefined or luks_password | trim | length == 0
+
+    - name: Check if the disk is already encrypted
+      ansible.builtin.command: "cryptsetup isLuks {{ disk_to_encrypt }}"
+      register: luks_check
+      changed_when: false
+      ignore_errors: true
+      become: true
+
+    - name: Check if the disk is busy or mounted
+      ansible.builtin.command: "lsblk -n -o MOUNTPOINT {{ disk_to_encrypt }}"
+      register: mount_check
+      changed_when: false
+      become: true
+
+    - name: Fail if the disk is already mounted
+      ansible.builtin.fail:
+        msg: "The disk {{ disk_to_encrypt }} is currently mounted and cannot be encrypted!"
+      when: mount_check.stdout is not none and mount_check.stdout | trim | length > 0
+
+    - name: Encrypt the disk with LUKS2
+      ansible.builtin.command:
+        cmd: "cryptsetup luksFormat --batch-mode --type luks2 {{ disk_to_encrypt }}"
+        stdin: "{{ luks_password }}"
+      become: true
+      when: luks_check.rc != 0
+      changed_when: true
+      no_log: true
+
+    - name: Open the encrypted disk
+      ansible.builtin.command:
+        cmd: "cryptsetup luksOpen {{ disk_to_encrypt }} encrypted_disk"
+        stdin: "{{ luks_password }}"
+      become: true
+      no_log: true
+      changed_when: false
+
+    - name: Check if the encrypted partition already has a filesystem
+      ansible.builtin.command: "lsblk -n -o FSTYPE /dev/mapper/encrypted_disk"
+      register: fs_check
+      changed_when: false
+      become: true
+
+    - name: Format the encrypted disk as ext4 (if not already formatted)
+      ansible.builtin.command:
+        cmd: "mkfs.ext4 /dev/mapper/encrypted_disk"
+      become: true
+      when: fs_check.stdout | trim | length == 0
+      changed_when: false
+
+    - name: Create mount point
+      ansible.builtin.file:
+        path: "/mnt/encrypted_disk"
+        state: directory
+        mode: '0755'
+      become: true
+
+    - name: Mount encrypted disk
+      ansible.posix.mount:
+        path: "/mnt/encrypted_disk"
+        src: "/dev/mapper/encrypted_disk"
+        fstype: ext4
+        opts: defaults
+        state: mounted
+      become: true
+
+    - name: Get the UUID of the encrypted disk
+      ansible.builtin.command: "blkid -s UUID -o value {{ disk_to_encrypt }}"
+      register: luks_uuid
+      changed_when: false
+      become: true
+
+    - name: Ensure persistence in /etc/crypttab
+      ansible.builtin.lineinfile:
+        path: /etc/crypttab
+        regexp: '^encrypted_disk'
+        line: "encrypted_disk UUID={{ luks_uuid.stdout }} none luks"
+        create: true
+        mode: '0644'
+      become: true
+
+    - name: Ensure persistence in /etc/fstab
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: '^/dev/mapper/encrypted_disk'
+        line: "/dev/mapper/encrypted_disk /mnt/encrypted_disk ext4 defaults 0 2"
+        create: true
+        mode: '0644'
+      become: true
