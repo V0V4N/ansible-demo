@@ -1,25 +1,26 @@
 ---
 
+- name: Install required packages
+  ansible.builtin.include_tasks: check_dependencies.yml
+  tags: [encrypt-disk, disk]
+
 - name: Apply disk encryption settings
   block:
-    - name: Install required packages
-      ansible.builtin.include_tasks: check_dependencies.yml
-      tags: [encrypt-disk, disk]
-
     - name: Encrypt a disk listed in host_vars
       ansible.builtin.include_tasks: encrypt_disk.yml
       tags: [encrypt-disk, disk]
       when: disk_to_encrypt is defined
-
-    - name: Encrypt partition that is next to the root partition
-      ansible.builtin.include_tasks: encrypt_partition.yml
-      tags: [encrypt-partition, disk]
-
   rescue:
     - name: Log failure but continue
       ansible.builtin.debug:
-        msg: "Disk encryption failed, continuing..."
+        msg: "[ERROR] Disk encryption failed, continuing..."
 
+- name: Apply partition encryption settings
+  block:
     - name: Encrypt partition that is next to the root partition
       ansible.builtin.include_tasks: encrypt_partition.yml
       tags: [encrypt-partition, disk]
+  rescue:
+    - name: Log failure but continue
+      ansible.builtin.debug:
+        msg: "[ERROR] Partition encryption failed, continuing..."

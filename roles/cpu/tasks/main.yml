@@ -1,20 +1,16 @@
 ---
 
-- name: Apply CPU governor and C-state settings
+- name: Apply CPU governor settings
   block:
     - name: Apply CPU governor settings
       ansible.builtin.include_tasks: set_governor.yml
       tags: [set-governor, cpu]
 
-    - name: Apply CPU C-state settings
-      ansible.builtin.include_tasks: set_cstates.yml
-      tags: [set-cstates, cpu]
-
   rescue:
     - name: Log failure but continue
       ansible.builtin.debug:
-        msg: "Governor settings failed, but continuing with C-state settings."
+        msg: "[ERROR] Governor settings failed, but continuing with C-state settings."
 
-    - name: Apply CPU C-state settings (even if governor settings failed)
-      ansible.builtin.include_tasks: set_cstates.yml
-      tags: [set-cstates, cpu]
+- name: Apply CPU C-state settings
+  ansible.builtin.include_tasks: set_cstates.yml
+  tags: [set-cstates, cpu]

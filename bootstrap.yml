@@ -1,18 +1,8 @@
 - name: Bootstrap server
   hosts: all
   become: true
+  gather_facts: true
   tasks:
-    - name: Run CPU configuration role
-      block:
-        - name: Run CPU role
-          ansible.builtin.include_role:
-            name: cpu
-          tags: [set-governor, set-cstates, cpu]
-      rescue:
-        - name: Log CPU role failure, but continue
-          ansible.builtin.debug:
-            msg: "CPU role failed, but continuing with Disk configuration."
-
     - name: Run Disk configuration role
       block:
         - name: Run Disk role
@@ -22,9 +12,51 @@
       rescue:
         - name: Log disk role failure, but continue
           ansible.builtin.debug:
-            msg: "Disk role failed, but continuing with Network configuration."
+            msg: "[ERROR] Disk role failed, but continuing with Network configuration."
+
+    - name: Run CPU configuration role
+      block:
+        - name: Run CPU role
+          ansible.builtin.include_role:
+            name: cpu
+          tags: [set-governor, set-cstates, cpu]
+      rescue:
+        - name: Log CPU role failure, but continue
+          ansible.builtin.debug:
+            msg: "[ERROR] CPU role failed, but continuing with Disk configuration."
 
     - name: Run Network configuration role
-      ansible.builtin.include_role:
-        name: network
-      tags: [rename-interface, network]
+      block:
+        - name: Run network role
+          ansible.builtin.include_role:
+            name: network
+          tags: [rename-interface, network]
+      rescue:
+        - name: Log network role failure, but continue
+          ansible.builtin.debug:
+            msg: "[ERROR] Network role failed, but continuing with CPU information output"
+
+    - name: Display information about CPU
+      block:
+        - name: Warn if CPU facts are missing
+          ansible.builtin.debug:
+            msg: "[WARNING] Actual CPU facts could not be retrieved! Double check if fact gathering is possible."
+          when: ansible_processor is not defined or ansible_processor_count is not defined
+
+        - name: Determine Hyper-Threading / SMT status
+          ansible.builtin.set_fact:
+            ht_smt_status: "{{ 'Enabled' if (ansible_processor_threads_per_core | default(1) | int) > 1 else 'Disabled' }}"
+
+        - name: Show CPU & Hyper-Threading/Multithreading Information
+          ansible.builtin.debug:
+            msg:
+              - "Detected CPU Vendor: {{ ansible_processor[1] | default('Unknown') }}"
+              - "Physical CPUs (Sockets): {{ ansible_processor_count | default(1) }}"
+              - "Cores per CPU: {{ ansible_processor_cores | default(1) }}"
+              - "Total Logical CPUs (Threads): {{ ansible_processor_vcpus | default(1) }}"
+              - "Threads per Core: {{ ansible_processor_threads_per_core | default(1) }}"
+              - "Hyper-Threading (Intel) / SMT (AMD): {{ ht_smt_status }}"
+
+    - name: Display status message
+      ansible.builtin.debug:
+        msg: "[INFO] Playbook execution completed! Please double check the output for ERROR or WARNING messages."

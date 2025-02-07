@@ -47,7 +47,7 @@
       changed_when: false
       become: true
 
-    - name: Display updated network interface information
+    - name: Display net0 network interface information
       ansible.builtin.debug:
         msg: "{{ new_interface_details.stdout }}"
 
@@ -57,16 +57,7 @@
         line: 'ACTION=="add", SUBSYSTEM=="net", ATTR{address}=="{{ interface_mac.stdout }}", RUN+="/sbin/ip link property add dev %k altname net0"'
         create: true
         mode: '0644'
-        
       become: true
-      register: udev_rule
-
-    - name: Reload `udev` rules
-      ansible.builtin.command: "udevadm control --reload-rules"
-      become: true
-      when: udev_rule.changed
-
-    - name: Trigger `udev` rules
-      ansible.builtin.command: "udevadm trigger"
-      become: true
-      when: udev_rule.changed
+      notify:
+        - Reload `udev` Rules
+        - Trigger `udev` Rules
