@@ -11,31 +11,44 @@
         state: present
       become: true
 
-    - name: Get the first active (UP) network interface (excluding loopback)
-      ansible.builtin.shell: >
-        set -o pipefail &&
-        ip -o link show up | awk -F': ' '!/lo/ {print $2}' | head -n 1
-      register: active_interface
+    - name: Get default network interface from `ip route`
+      ansible.builtin.command: "ip route show default"
+      register: default_route
       changed_when: false
       become: true
-      failed_when: active_interface.stdout | trim == ""
-      args:
-        executable: /bin/bash
+
+    - name: Ensure a default route exists
+      ansible.builtin.fail:
+        msg: "No default route found. Cannot determine active network interface."
+      when: default_route.stdout | trim == ""
+
+    - name: Extract interface name from route output
+      ansible.builtin.set_fact:
+        active_interface: "{{ default_route.stdout | regex_findall('dev\\s+(\\S+)') | first | default('') }}"
+
+    - name: Ensure an active interface was detected
+      ansible.builtin.fail:
+        msg: "Could not determine active network interface from default route."
+      when: active_interface | trim == ""
+
+    - name: Debug active network interface
+      ansible.builtin.debug:
+        msg: "Detected active network interface: {{ active_interface }}"
 
     - name: Get MAC address of the active interface
-      ansible.builtin.command: "cat /sys/class/net/{{ active_interface.stdout }}/address"
+      ansible.builtin.command: "cat /sys/class/net/{{ active_interface }}/address"
       register: interface_mac
       changed_when: false
       become: true
 
     - name: Show detected network interface
       ansible.builtin.debug:
-        msg: "Detected active network interface: {{ active_interface.stdout }} (MAC: {{ interface_mac.stdout }})"
+        msg: "Detected active network interface: {{ active_interface }} (MAC: {{ interface_mac.stdout }})"
 
     - name: Check if interface already has altname net0
       ansible.builtin.shell: >
         set -o pipefail &&
-        ip -j link show {{ active_interface.stdout }} | jq -e '.[0].altnames | index("net0")' > /dev/null && echo 'exists' || echo 'missing'
+        ip -j link show {{ active_interface }} | jq -e '.[0].altnames | index("net0")' > /dev/null && echo 'exists' || echo 'missing'
       register: altname_check
       changed_when: false
       become: true
@@ -44,7 +57,7 @@
         executable: /bin/bash
 
     - name: Set alternative interface name `net0` (only if missing)
-      ansible.builtin.command: "ip link property add dev {{ active_interface.stdout }} altname net0"
+      ansible.builtin.command: "ip link property add dev {{ active_interface }} altname net0"
       become: true
       changed_when: true
       when: "'missing' in altname_check.stdout"

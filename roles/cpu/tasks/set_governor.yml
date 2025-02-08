@@ -14,7 +14,7 @@
 
     - name: Ensure CPU frequency package is installed
       ansible.builtin.package:
-        name: "cpufrequtils"
+        name: "{{ 'cpufrequtils' if ansible_os_family == 'Debian' else 'kernel-tools' }}"
         state: present
       become: true
 

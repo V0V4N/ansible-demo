@@ -3,17 +3,6 @@
   become: true
   gather_facts: true
   tasks:
-    - name: Run Disk configuration role
-      block:
-        - name: Run Disk role
-          ansible.builtin.include_role:
-            name: disk
-          tags: [encrypt-disk, encrypt-partition, disk]
-      rescue:
-        - name: Log disk role failure, but continue
-          ansible.builtin.debug:
-            msg: "[ERROR] Disk role failed, but continuing with Network configuration."
-
     - name: Run CPU configuration role
       block:
         - name: Run CPU role
@@ -24,6 +13,17 @@
         - name: Log CPU role failure, but continue
           ansible.builtin.debug:
             msg: "[ERROR] CPU role failed, but continuing with Disk configuration."
+
+    - name: Run Disk configuration role
+      block:
+        - name: Run Disk role
+          ansible.builtin.include_role:
+            name: disk
+          tags: [encrypt-disk, encrypt-partition, disk]
+      rescue:
+        - name: Log disk role failure, but continue
+          ansible.builtin.debug:
+            msg: "[ERROR] Disk role failed, but continuing with Network configuration."
 
     - name: Run Network configuration role
       block:
