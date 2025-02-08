@@ -2,7 +2,7 @@
 
 - name: Install required packages
   ansible.builtin.include_tasks: check_dependencies.yml
-  tags: [encrypt-disk, disk]
+  tags: [encrypt-disk, encrypt-partition, disk]
 
 - name: Apply disk encryption settings
   tags: [encrypt-disk, disk]
