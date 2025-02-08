@@ -20,6 +20,7 @@ You can also opt in to run the project inside a Docker container, see Dockerfile
 
 The project currently uses the following directory structure. You can use it as a reference when navigating its contents:
 
+```
 ├── bootstrap.yml
 ├── inventory.yml
 ├── host_vars/
@@ -38,6 +39,7 @@ The project currently uses the following directory structure. You can use it as 
 │   │   ├── handlers/
 │   │   ├── README.md
 ├── README.md
+```
 
 ## Usage scenarios
 
