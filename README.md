@@ -11,7 +11,7 @@ This repository contains an Ansible-based automation project that configures a s
 - **Python 3.10+** (3.13 recommended as it was used in the initial development process)
 - virtual env usage is strongly encouraged
 - pip packages outlined in requirements.txt
-- `ansible.posix` collection from ansible-galaxy
+- `ansible.posix`, `community.general` and `community.crypto` collections from ansible-galaxy installed
 - SSH access to target host with privilege escalation capabilities (root access)
 
 You can also opt in to run the project inside a Docker container, see Dockerfile and docker-compose.yml files for reference.
@@ -52,7 +52,7 @@ git clone https://github.com/V0V4N/ansible-demo.git
 cd ansible-demo
 python3 -m venv venv
 source venv/bin/activate
-ansible-galaxy collection install ansible.posix
+ansible-galaxy collection install ansible.posix community.general community.crypto
 ```
 
 Then, you should place your SSH RSA private key into `.ssh` directory of this project and run `chmod 400 .ssh/id_rsa`. Don't worry, this file is ignored by git, hence you're not going to accidentally commit it into repo.
@@ -148,7 +148,7 @@ git clone https://github.com/V0V4N/ansible-demo.git
 cd ansible-demo
 python3 -m venv venv
 source venv/bin/activate
-ansible-galaxy collection install ansible.posix
+ansible-galaxy collection install ansible.posix community.general community.crypto
 ```
 
 After that, you should edit `host_vars/localhost.yml`, replacing the placeholder with relevant contents, for example:
