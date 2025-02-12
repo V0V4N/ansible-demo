@@ -4,7 +4,7 @@ RUN apt-get update && apt-get install -y \
     openssh-client sshpass \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir ansible-core==2.16.2 ansible-lint && ansible-galaxy collection install ansible.posix
+RUN pip install --no-cache-dir ansible-core==2.16.2 ansible-lint && ansible-galaxy collection install ansible.posix community.general community.crypto
 
 COPY ansible.cfg /etc/ansible/ansible.cfg
 

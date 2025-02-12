@@ -24,69 +24,23 @@
   ansible.builtin.set_fact:
     mount_point: "/mnt/{{ luks_device }}"
 
-- name: Check if the target is already encrypted
-  ansible.builtin.command: "cryptsetup isLuks {{ target }}"
-  register: luks_check
-  changed_when: false
-  ignore_errors: true
-  become: true
-
-- name: Check if the target is mounted
-  ansible.builtin.command: "lsblk -n -o MOUNTPOINT {{ target }}"
-  register: mount_check
-  changed_when: false
-  become: true
-
-- name: Fail if the target is already mounted
-  ansible.builtin.fail:
-    msg: "The target {{ target }} is currently mounted and cannot be encrypted!"
-  when: mount_check.stdout is not none and mount_check.stdout | trim | length > 0
-
-- name: Encrypt the target with LUKS2
-  ansible.builtin.command:
-    cmd: "cryptsetup luksFormat --batch-mode --type luks2 {{ target }}"
-    stdin: "{{ luks_password }}"
-  become: true
-  when: luks_check.rc != 0
-  changed_when: true
-  no_log: true
-
-- name: Open the encrypted target
-  ansible.builtin.command:
-    cmd: "cryptsetup luksOpen {{ target }} {{ luks_device }}"
-    stdin: "{{ luks_password }}"
+- name: Encrypt and open the target with LUKS2
+  community.crypto.luks_device:
+    device: "{{ target }}"
+    state: "opened"
+    type: luks2
+    passphrase: "{{ luks_password }}"
+    name: "{{ luks_device }}"
   become: true
   no_log: true
-  changed_when: false
-
-- name: Check if the encrypted target already has a filesystem
-  ansible.builtin.command: "lsblk -n -o FSTYPE /dev/mapper/{{ luks_device }}"
-  register: fs_check
-  changed_when: false
-  become: true
 
 - name: Format the encrypted target as ext4 (if no filesystem exists)
-  ansible.builtin.command:
-    cmd: "mkfs.ext4 /dev/mapper/{{ luks_device }}"
-  become: true
-  when: fs_check.stdout | trim | length == 0
-  changed_when: false
-
-- name: Get the UUID of the encrypted target
-  ansible.builtin.command: "blkid -s UUID -o value {{ target }}"
-  register: luks_uuid
-  changed_when: false
-  failed_when: luks_uuid.stdout | trim == ""
+  community.general.filesystem:
+    fstype: ext4
+    dev: "/dev/mapper/{{ luks_device }}"
   become: true
 
-- name: Create mount point for encrypted target
-  ansible.builtin.file:
-    path: "{{ mount_point }}"
-    state: directory
-    mode: '0755'
-  become: true
-
-- name: Mount the encrypted target
+- name: Mount the encrypted target (and ensure persistence in /etc/fstab)
   ansible.posix.mount:
     path: "{{ mount_point }}"
     src: "/dev/mapper/{{ luks_device }}"
@@ -96,19 +50,9 @@
   become: true
 
 - name: Ensure persistence in /etc/crypttab
-  ansible.builtin.lineinfile:
-    path: /etc/crypttab
-    regexp: "^{{ luks_device }}"
-    line: "{{ luks_device }} UUID={{ luks_uuid.stdout }} none luks"
-    create: true
-    mode: '0644'
-  become: true
-
-- name: Ensure persistence in /etc/fstab
-  ansible.builtin.lineinfile:
-    path: /etc/fstab
-    regexp: "^/dev/mapper/{{ luks_device }}"
-    line: "/dev/mapper/{{ luks_device }} {{ mount_point }} ext4 defaults 0 2"
-    create: true
-    mode: '0644'
-  become: true
+  community.general.crypttab:
+    name: "{{ luks_device }}"
+    backing_device: "/dev/mapper/{{ luks_device }}"
+    opts: "luks"
+    state: present
+  no_log: true

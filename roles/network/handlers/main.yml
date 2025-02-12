@@ -1,10 +1,17 @@
 ---
 - name: Reload `udev` Rules
-  ansible.builtin.command: "udevadm control --reload-rules"
+  ansible.builtin.command: "udevadm control --reload"
   become: true
   changed_when: true
 
 - name: Trigger `udev` Rules
-  ansible.builtin.command: "udevadm trigger"
+  ansible.builtin.command: "udevadm trigger --settle --action add /sys/class/net/{{ active_interface }}"
   become: true
   changed_when: true
+
+- name: Ensure systemd-networkd is enabled and restarted
+  ansible.builtin.systemd_service:
+    name: systemd-networkd
+    enabled: true
+    state: restarted
+  become: true
