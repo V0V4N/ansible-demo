@@ -3,6 +3,13 @@
 - name: Rename network interface to net0
   tags: [rename-interface, network]
   block:
+    - name: Ensure required network packages are installed
+      ansible.builtin.package:
+        name:
+          - "{{ 'iproute2' if ansible_os_family == 'Debian' else 'iproute' }}"
+        state: present
+      become: true
+
     - name: Get default network interface from `ip route`
       ansible.builtin.command: "ip route show default"
       register: default_route
